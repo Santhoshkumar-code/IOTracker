@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>I/O Fluid Balance Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:      #1B2B4B;
+      --navy2:     #243352;
+      --navy3:     #0F1E35;
+      --bg:        #F4F6FA;
+      --surface:   #FFFFFF;
+      --surface2:  #EDF0F7;
+      --border:    #DDE2ED;
+      --border2:   #C8CFE0;
+      --text1:     #1B2B4B;
+      --text2:     #445579;
+      --text3:     #8494B4;
+      --teal:      #0A7C6E;
+      --teal-lt:   #E8F7F5;
+      --teal-md:   #9FDED8;
+      --rose:      #A3234B;
+      --rose-lt:   #FDEDF2;
+      --rose-md:   #F0AABF;
+      --gold:      #7A5C00;
+      --gold-lt:   #FFF8E1;
+      --green:     #1A6B3A;
+      --green-lt:  #EAF7EE;
+      --red:       #B91C1C;
+      --accent:    #1E4E9C;
+      --accent-lt: #EAF0FB;
+      --accent-md: #AABFEC;
+      --r:         8px;
+      --rlg:       12px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif; background: var(--bg); color: var(--text1); min-height: 100vh; font-size: 14px; line-height: 1.5; }
+
+    /* Header */
+    #header { background: var(--navy); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 60px; }
+    .hleft { display: flex; align-items: center; gap: 12px; }
+    .hlogo { width: 34px; height: 34px; background: rgba(255,255,255,.12); border-radius: var(--r); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .hlogo svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .htitle { font-size: 15px; font-weight: 600; color: #fff; }
+    .hsub   { font-size: 11px; color: rgba(255,255,255,.5); margin-top: 1px; letter-spacing: .02em; }
+    .btn-primary { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.22); border-radius: var(--r); padding: 7px 14px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 5px; transition: background .15s; letter-spacing: .01em; }
+    .btn-primary:hover { background: rgba(255,255,255,.22); }
+
+    /* Breadcrumb bar */
+    #breadbar { background: var(--navy2); border-bottom: 1px solid rgba(255,255,255,.08); padding: 7px 24px; display: flex; align-items: center; gap: 8px; }
+    .bctag { font-size: 11px; color: rgba(255,255,255,.45); letter-spacing: .04em; text-transform: uppercase; }
+    .bcsep { color: rgba(255,255,255,.2); font-size: 12px; }
+    #bcday { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.75); letter-spacing: .03em; }
+
+    /* Layout */
+    #layout { display: flex; min-height: calc(100vh - 96px); }
+
+    /* Sidebar */
+    #sidebar { width: 150px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); padding: 10px 0; overflow-y: auto; }
+    .slabel { font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text3); padding: 8px 14px 4px; }
+    .day-btn { width: 100%; background: transparent; border: none; border-left: 3px solid transparent; color: var(--text2); padding: 9px 14px; text-align: left; cursor: pointer; font-family: inherit; font-size: 12px; transition: all .12s; }
+    .day-btn:hover { background: var(--surface2); }
+    .day-btn.active { background: var(--accent-lt); border-left: 3px solid var(--accent); color: var(--accent); }
+    .dname { font-weight: 600; margin-bottom: 1px; }
+    .ddate { font-size: 10px; color: var(--text3); }
+    .day-btn.active .ddate { color: #7A9DD8; }
+    .dbadges { display: flex; gap: 3px; margin-top: 5px; flex-wrap: wrap; }
+    .bin  { background: var(--teal-lt); color: var(--teal); font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 600; }
+    .bout { background: var(--rose-lt); color: var(--rose); font-size: 10px; padding: 1px 5px; border-radius: 4px; font-weight: 600; }
+
+    /* Main */
+    #main { flex: 1; padding: 22px 24px; overflow-y: auto; }
+    .day-title { font-size: 20px; font-weight: 700; margin-bottom: 2px; color: var(--navy); }
+    .day-sub   { font-size: 12px; color: var(--text3); margin-bottom: 18px; letter-spacing: .02em; }
+
+    /* Summary Cards */
+    #cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 18px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--rlg); padding: 16px 18px; }
+    .card-in  { border-top: 3px solid var(--teal); }
+    .card-out { border-top: 3px solid var(--rose); }
+    .card-bal { border-top: 3px solid var(--text3); }
+    .clabel { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+    .cval   { font-size: 30px; font-weight: 700; line-height: 1; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+    .cunit  { font-size: 11px; color: var(--text3); letter-spacing: .02em; }
+
+    /* Bar chart */
+    #bars { background: var(--surface); border: 1px solid var(--border); border-radius: var(--rlg); padding: 16px 18px; margin-bottom: 18px; display: none; }
+    .barlabel { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 14px; }
+    .barrow   { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .bartag   { font-size: 11px; font-weight: 700; width: 30px; }
+    .bartrack { flex: 1; height: 8px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
+    .barfill  { height: 100%; border-radius: 99px; transition: width .5s ease; }
+    .baramt   { font-size: 12px; font-weight: 600; width: 55px; text-align: right; }
+
+    /* Log */
+    #loglabel { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
+    #elist { display: flex; flex-direction: column; gap: 6px; }
+    .eitem { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 11px 14px; display: flex; align-items: center; gap: 12px; transition: border-color .15s; }
+    .eitem:hover { border-color: var(--border2); }
+    .epill { font-size: 10px; font-weight: 700; border-radius: 5px; padding: 3px 9px; white-space: nowrap; flex-shrink: 0; letter-spacing: .04em; text-transform: uppercase; }
+    .pin  { background: var(--teal-lt); color: var(--teal); }
+    .pout { background: var(--rose-lt); color: var(--rose); }
+    .ebody  { flex: 1; min-width: 0; }
+    .eamt   { font-size: 15px; font-weight: 700; color: var(--navy); }
+    .esub   { font-size: 12px; color: var(--text3); margin-left: 6px; font-weight: 400; }
+    .enote  { font-size: 12px; color: var(--text3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .etime  { font-size: 12px; color: var(--text3); white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .edel   { background: none; border: none; color: var(--border2); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; font-family: inherit; flex-shrink: 0; transition: color .12s; }
+    .edel:hover { color: var(--red); }
+    #empty { background: var(--surface); border: 1px dashed var(--border2); border-radius: var(--rlg); padding: 40px; text-align: center; color: var(--text3); font-size: 13px; line-height: 2; }
+    #empty strong { display: block; font-size: 14px; font-weight: 600; color: var(--text2); margin-bottom: 4px; }
+
+    /* Modal */
+    #overlay { display: none; position: fixed; inset: 0; background: rgba(11,18,32,.55); align-items: center; justify-content: center; z-index: 100; padding: 16px; }
+    #overlay.open { display: flex; }
+    #modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--rlg); padding: 24px; width: 100%; max-width: 400px; box-shadow: 0 12px 40px rgba(11,18,32,.18); }
+    .mhead  { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+    .mtitle { font-size: 16px; font-weight: 700; color: var(--navy); }
+    .msub   { font-size: 12px; color: var(--text3); margin-top: 3px; }
+    .mclose { background: none; border: none; font-size: 20px; color: var(--text3); cursor: pointer; line-height: 1; padding: 0; transition: color .12s; }
+    .mclose:hover { color: var(--text1); }
+    .fg   { margin-bottom: 14px; }
+    .fl   { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 7px; }
+    .trow { display: flex; gap: 6px; }
+    .tbtn { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r); color: var(--text2); padding: 9px; font-size: 12px; font-family: inherit; font-weight: 500; cursor: pointer; transition: all .15s; }
+    .tbtn.ai { background: var(--teal-lt); border-color: var(--teal-md); color: var(--teal); font-weight: 600; }
+    .tbtn.ao { background: var(--rose-lt); border-color: var(--rose-md); color: var(--rose); font-weight: 600; }
+    .strow { display: flex; flex-wrap: wrap; gap: 6px; }
+    .stbtn { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text2); padding: 5px 11px; font-size: 12px; font-family: inherit; cursor: pointer; transition: all .12s; }
+    .stbtn.act { background: var(--accent-lt); border-color: var(--accent-md); color: var(--accent); font-weight: 600; }
+    input[type=number], input[type=text] { width: 100%; background: var(--surface); border: 1px solid var(--border2); border-radius: var(--r); color: var(--text1); padding: 9px 12px; font-size: 14px; font-family: inherit; outline: none; transition: border-color .15s, box-shadow .15s; }
+    input[type=number] { font-size: 16px; font-variant-numeric: tabular-nums; }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-lt); }
+    .qrow { display: flex; gap: 5px; margin-top: 6px; }
+    .qbtn { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; color: var(--text2); padding: 5px 2px; font-size: 11px; font-family: inherit; cursor: pointer; font-weight: 500; transition: all .12s; }
+    .qbtn:hover { background: var(--accent-lt); border-color: var(--accent-md); color: var(--accent); }
+    .mactions { display: flex; gap: 8px; margin-top: 20px; border-top: 1px solid var(--border); padding-top: 18px; }
+    #bcancel { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r); color: var(--text2); padding: 9px; font-size: 13px; font-family: inherit; font-weight: 500; cursor: pointer; transition: background .12s; }
+    #bcancel:hover { background: var(--border); }
+    #bsubmit { flex: 2; background: var(--border); border: none; border-radius: var(--r); color: var(--text3); padding: 9px; font-size: 13px; font-family: inherit; font-weight: 600; cursor: not-allowed; transition: all .15s; }
+    #bsubmit.ready { background: var(--navy); color: #fff; cursor: pointer; }
+    #bsubmit.ready:hover { background: var(--navy3); }
+
+    @media(max-width:500px){ #cards{grid-template-columns:1fr 1fr} #sidebar{width:110px} #main{padding:12px 14px} }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div class="hleft">
+    <div class="hlogo">
+      <svg viewBox="0 0 24 24"><path d="M12 2C8 2 5 6 5 10c0 5 7 12 7 12s7-7 7-12c0-4-3-8-7-8z"/><circle cx="12" cy="10" r="2.5"/></svg>
+    </div>
+    <div>
+      <div class="htitle">Fluid Balance Tracker</div>
+      <div class="hsub">Clinical I/O Monitoring System</div>
+    </div>
+  </div>
+  <button class="btn-primary" id="btn-add">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    Log Entry
+  </button>
+</div>
+
+<div id="breadbar">
+  <span class="bctag">Patient Record</span>
+  <span class="bcsep">›</span>
+  <span id="bcday">Today</span>
+</div>
+
+<div id="layout">
+  <div id="sidebar">
+    <div class="slabel">Days</div>
+    <div id="sdays"></div>
+  </div>
+  <div id="main">
+    <div class="day-title" id="dtitle">Today</div>
+    <div class="day-sub" id="dsub"></div>
+    <div id="cards">
+      <div class="card card-in">
+        <div class="clabel">Total Intake</div>
+        <div class="cval" id="vin" style="color:var(--teal)">0</div>
+        <div class="cunit">millilitres (mL)</div>
+      </div>
+      <div class="card card-out">
+        <div class="clabel">Total Output</div>
+        <div class="cval" id="vout" style="color:var(--rose)">0</div>
+        <div class="cunit">millilitres (mL)</div>
+      </div>
+      <div class="card card-bal" id="cbal">
+        <div class="clabel">Net Balance</div>
+        <div class="cval" id="vbal" style="color:var(--text3)">0</div>
+        <div class="cunit">millilitres (mL)</div>
+      </div>
+    </div>
+    <div id="bars">
+      <div class="barlabel">Fluid Comparison</div>
+      <div class="barrow">
+        <div class="bartag" style="color:var(--teal)">In</div>
+        <div class="bartrack"><div class="barfill" id="barin" style="background:var(--teal);width:0%"></div></div>
+        <div class="baramt" id="binlbl" style="color:var(--teal)">0 mL</div>
+      </div>
+      <div class="barrow">
+        <div class="bartag" style="color:var(--rose)">Out</div>
+        <div class="bartrack"><div class="barfill" id="barout" style="background:var(--rose);width:0%"></div></div>
+        <div class="baramt" id="boutlbl" style="color:var(--rose)">0 mL</div>
+      </div>
+    </div>
+    <div id="loglabel">Entry Log</div>
+    <div id="elist"></div>
+  </div>
+</div>
+
+<div id="overlay">
+  <div id="modal">
+    <div class="mhead">
+      <div>
+        <div class="mtitle">Log Fluid Entry</div>
+        <div class="msub">Record intake or output with timestamp</div>
+      </div>
+      <button class="mclose" onclick="closeModal()">&#215;</button>
+    </div>
+    <div class="fg">
+      <div class="fl">Type</div>
+      <div class="trow">
+        <button class="tbtn ai" id="bti" onclick="setType('intake')">&#8593; Intake</button>
+        <button class="tbtn"    id="bto" onclick="setType('output')">&#8595; Output</button>
+      </div>
+    </div>
+    <div class="fg"><div class="fl">Subtype</div><div class="strow" id="strow"></div></div>
+    <div class="fg">
+      <div class="fl">Amount (mL)</div>
+      <input type="number" id="ainput" placeholder="Enter amount in mL" oninput="onAmt()" />
+      <div class="qrow">
+        <button class="qbtn" onclick="setAmt(50)">50</button>
+        <button class="qbtn" onclick="setAmt(100)">100</button>
+        <button class="qbtn" onclick="setAmt(200)">200</button>
+        <button class="qbtn" onclick="setAmt(250)">250</button>
+        <button class="qbtn" onclick="setAmt(500)">500</button>
+      </div>
+    </div>
+    <div class="fg">
+      <div class="fl">Note <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text3)">(optional)</span></div>
+      <input type="text" id="ninput" placeholder="e.g. post-op drain, morning IV" />
+    </div>
+    <div class="mactions">
+      <button id="bcancel" onclick="closeModal()">Cancel</button>
+      <button id="bsubmit" onclick="submit()">Log Entry</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let entries={};
+  try{entries=JSON.parse(localStorage.getItem('fluidEntries')||'{}');}catch{}
+  let selDay=today(), fType='intake', fSub='water';
+  const IS=['water','IV fluid','oral intake','medication','other'];
+  const OS=['urine','drain','emesis','blood loss','other'];
+
+  function today(){return new Date().toISOString().split('T')[0];}
+  function fmtTime(iso){return new Date(iso).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});}
+  function fmtDate(ds){return new Date(ds+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});}
+  function save(){localStorage.setItem('fluidEntries',JSON.stringify(entries));}
+  function render(){renderSidebar();renderMain();}
+
+  function renderSidebar(){
+    const td=today();
+    const days=Object.keys(entries).sort((a,b)=>b.localeCompare(a));
+    if(!days.includes(td))days.unshift(td);
+    document.getElementById('sdays').innerHTML=days.map(d=>{
+      const di=entries[d]||[];
+      const din=di.filter(e=>e.type==='intake').reduce((s,e)=>s+e.amount,0);
+      const dout=di.filter(e=>e.type==='output').reduce((s,e)=>s+e.amount,0);
+      const isSel=d===selDay, isT=d===td;
+      return `<button class="day-btn ${isSel?'active':''}" onclick="selDay='${d}';render()">
+        <div class="dname">${isT?'Today':fmtDate(d).split(',')[0]}</div>
+        <div class="ddate">${fmtDate(d)}</div>
+        ${(din>0||dout>0)?`<div class="dbadges">${din>0?`<span class="bin">&#8593;${din}</span>`:''} ${dout>0?`<span class="bout">&#8595;${dout}</span>`:''}</div>`:''}\n      </button>`;
+    }).join('');
+  }
+
+  function renderMain(){
+    const td=today(), de=entries[selDay]||[];
+    const tin=de.filter(e=>e.type==='intake').reduce((s,e)=>s+e.amount,0);
+    const tout=de.filter(e=>e.type==='output').reduce((s,e)=>s+e.amount,0);
+    const bal=tin-tout;
+    const bc=bal>0?'var(--green)':bal<0?'var(--red)':'var(--text3)';
+    const bbt=bal>0?'3px solid var(--green)':bal<0?'3px solid var(--red)':'3px solid var(--text3)';
+
+    document.getElementById('dtitle').textContent=selDay===td?'Today':fmtDate(selDay).split(',')[0];
+    document.getElementById('dsub').textContent=fmtDate(selDay)+', '+new Date(selDay+'T00:00:00').getFullYear();
+    document.getElementById('bcday').textContent=selDay===td?'Today — '+fmtDate(selDay):fmtDate(selDay)+', '+new Date(selDay+'T00:00:00').getFullYear();
+    document.getElementById('vin').textContent=tin;
+    document.getElementById('vout').textContent=tout;
+    const vb=document.getElementById('vbal');
+    vb.textContent=(bal>=0?'+':'−')+Math.abs(bal);
+    vb.style.color=bc;
+    document.getElementById('cbal').style.borderTop=bbt;
+
+    const barsEl=document.getElementById('bars');
+    if(tin>0||tout>0){
+      barsEl.style.display='block';
+      const mx=Math.max(tin,tout);
+      document.getElementById('barin').style.width=(tin/mx*100)+'%';
+      document.getElementById('barout').style.width=(tout/mx*100)+'%';
+      document.getElementById('binlbl').textContent=tin+' mL';
+      document.getElementById('boutlbl').textContent=tout+' mL';
+    } else { barsEl.style.display='none'; }
+
+    document.getElementById('loglabel').textContent=`Entry Log (${de.length} entr${de.length===1?'y':'ies'})`;
+    const list=document.getElementById('elist');
+    if(!de.length){
+      list.innerHTML=`<div id="empty"><strong>No entries recorded</strong>Tap "Log Entry" to record fluid intake or output for this day.</div>`;
+    } else {
+      list.innerHTML=[...de].sort((a,b)=>new Date(b.time)-new Date(a.time)).map(e=>`
+        <div class="eitem">
+          <span class="epill ${e.type==='intake'?'pin':'pout'}">${e.type==='intake'?'&#8593; In':'&#8595; Out'}</span>
+          <div class="ebody">
+            <div class="eamt">${e.amount} mL<span class="esub">${e.subtype}</span></div>
+            ${e.note?`<div class="enote">${e.note}</div>`:''}
+          </div>
+          <div class="etime">${fmtTime(e.time)}</div>
+          <button class="edel" onclick="delEntry(${e.id})">&#215;</button>
+        </div>`).join('');
+    }
+  }
+
+  function delEntry(id){
+    entries[selDay]=(entries[selDay]||[]).filter(e=>e.id!==id);
+    save();render();
+  }
+  function openModal(){
+    selDay=today();fType='intake';fSub='water';
+    document.getElementById('ainput').value='';
+    document.getElementById('ninput').value='';
+    updType();updSubs();updBtn();
+    document.getElementById('overlay').classList.add('open');
+    setTimeout(()=>document.getElementById('ainput').focus(),80);
+  }
+  function closeModal(){document.getElementById('overlay').classList.remove('open');}
+  function setType(t){fType=t;fSub=t==='intake'?'water':'urine';updType();updSubs();}
+  function setAmt(v){document.getElementById('ainput').value=v;updBtn();}
+  function onAmt(){updBtn();}
+  function updType(){
+    document.getElementById('bti').className='tbtn '+(fType==='intake'?'ai':'');
+    document.getElementById('bto').className='tbtn '+(fType==='output'?'ao':'');
+  }
+  function updSubs(){
+    const subs=fType==='intake'?IS:OS;
+    document.getElementById('strow').innerHTML=subs.map(s=>
+      `<button class="stbtn ${s===fSub?'act':''}" onclick="fSub='${s}';updSubs()">${s}</button>`
+    ).join('');
+  }
+  function updBtn(){
+    const v=parseFloat(document.getElementById('ainput').value);
+    document.getElementById('bsubmit').classList.toggle('ready',v>0&&!isNaN(v));
+  }
+  function submit(){
+    const v=parseFloat(document.getElementById('ainput').value);
+    if(!v||isNaN(v)||v<=0)return;
+    const e={id:Date.now(),type:fType,subtype:fSub,amount:v,note:document.getElementById('ninput').value.trim(),time:new Date().toISOString()};
+    if(!entries[selDay])entries[selDay]=[];
+    entries[selDay].push(e);
+    save();closeModal();render();
+  }
+  document.getElementById('btn-add').addEventListener('click',openModal);
+  document.getElementById('overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+  render();
+</script>
+</body>
+</html>
